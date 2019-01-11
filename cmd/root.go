@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,31 +37,39 @@ func runRoot(cmd *cobra.Command, args []string) {
 	}
 	fmt.Printf("%v\n", path)
 
-	dirs := make([]string, 0)
+	if path == "." {
+		cd, _ := os.Getwd()
+		path = cd
+	}
+
+	dirCount := 0
+	fileCount := 0
+
+	dirs := make(map[string]int)
+	files := make(map[string]int)
 
 	if err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+		parentDir := filepath.Dir(p)
+		files[parentDir]++
+		last := files[parentDir] == dirs[parentDir]
+
 		if info.IsDir() {
+			f, err := ioutil.ReadDir(p)
+			if err != nil {
+				return err
+			}
+			dirs[p] = len(f)
+
 			if path == p {
 				return nil
 			}
 
-			list := strings.Split(p, "/")
+			list := strings.Split(strings.Replace(p, path+"/", "", -1), "/")
 			node := len(list)
 
-			if node > 1 {
-				fmt.Printf("│")
-			}
+			filePrint(list[node-1], node, last)
 
-			x := node
-			for x > 1 {
-				x--
-				fmt.Printf("   ")
-			}
-
-			fmt.Printf("├── ")
-			fmt.Println(list[node-1])
-
-			dirs = append(dirs, list[node-1])
+			dirCount++
 			return nil
 		}
 
@@ -72,23 +81,48 @@ func runRoot(cmd *cobra.Command, args []string) {
 		list := strings.Split(rel, "/")
 		node := len(list)
 
-		if node > 1 {
-			fmt.Printf("│")
-		}
+		filePrint(list[node-1], node, last)
 
-		x := node
-		for x > 1 {
-			x--
-			fmt.Printf("   ")
-		}
-
-		fmt.Printf("├── ")
-		fmt.Println(list[node-1])
-
+		fileCount++
 		return nil
 	}); err != nil {
 		fmt.Println(err)
 	}
+
+	lastPrint(dirCount, fileCount)
+}
+
+func filePrint(file string, node int, last bool) {
+	if node > 1 {
+		fmt.Printf("│")
+		fmt.Printf("   ")
+	}
+
+	x := node - 2
+	for x > 0 {
+		x--
+		fmt.Printf("│")
+		fmt.Printf("   ")
+	}
+
+	if last {
+		fmt.Printf("└── ")
+	} else {
+		fmt.Printf("├── ")
+	}
+	fmt.Println(file)
+}
+
+func lastPrint(dirCount, fileCount int) {
+	dir := "directory"
+	file := "file"
+	if dirCount != 1 {
+		dir = "directories"
+	}
+	if fileCount != 1 {
+		file = "files"
+	}
+	fmt.Printf("\n%d %s, %d %s", dirCount, dir, fileCount, file)
 }
 
 func getFilePath(args []string) (string, error) {
