@@ -36,9 +36,31 @@ func runRoot(cmd *cobra.Command, args []string) {
 	}
 	fmt.Printf("%v\n", path)
 
+	dirs := make([]string, 0)
+
 	if err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
 		if info.IsDir() {
-			fmt.Println(p)
+			if path == p {
+				return nil
+			}
+
+			list := strings.Split(p, "/")
+			node := len(list)
+
+			if node > 1 {
+				fmt.Printf("│")
+			}
+
+			x := node
+			for x > 1 {
+				x--
+				fmt.Printf("   ")
+			}
+
+			fmt.Printf("├── ")
+			fmt.Println(list[node-1])
+
+			dirs = append(dirs, list[node-1])
 			return nil
 		}
 
@@ -46,7 +68,22 @@ func runRoot(cmd *cobra.Command, args []string) {
 		if err != nil {
 			return err
 		}
-		fmt.Println(rel)
+
+		list := strings.Split(rel, "/")
+		node := len(list)
+
+		if node > 1 {
+			fmt.Printf("│")
+		}
+
+		x := node
+		for x > 1 {
+			x--
+			fmt.Printf("   ")
+		}
+
+		fmt.Printf("├── ")
+		fmt.Println(list[node-1])
 
 		return nil
 	}); err != nil {
