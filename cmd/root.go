@@ -46,6 +46,7 @@ func runRoot(cmd *cobra.Command, args []string) {
 	fileCount := 0
 
 	dirs := make(map[string]int)
+	dirlasts := make(map[string]bool)
 	files := make(map[string]int)
 
 	if err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
@@ -58,18 +59,17 @@ func runRoot(cmd *cobra.Command, args []string) {
 			if err != nil {
 				return err
 			}
+			// file count of a directory
 			dirs[p] = len(f)
 
 			if path == p {
 				return nil
 			}
 
-			list := strings.Split(strings.Replace(p, path+"/", "", -1), "/")
-			node := len(list)
-
-			filePrint(list[node-1], node, last)
+			filePrint(strings.Replace(p, path+"/", "", -1), last, dirlasts)
 
 			dirCount++
+			dirlasts[strings.Replace(p, path+"/", "", -1)] = last
 			return nil
 		}
 
@@ -78,10 +78,7 @@ func runRoot(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		list := strings.Split(rel, "/")
-		node := len(list)
-
-		filePrint(list[node-1], node, last)
+		filePrint(rel, last, dirlasts)
 
 		fileCount++
 		return nil
@@ -92,17 +89,33 @@ func runRoot(cmd *cobra.Command, args []string) {
 	lastPrint(dirCount, fileCount)
 }
 
-func filePrint(file string, node int, last bool) {
+func filePrint(path string, last bool, dirlasts map[string]bool) {
+	list := strings.Split(path, "/")
+	node := len(list)
+	file := list[node-1]
+
 	if node > 1 {
 		fmt.Printf("│")
 		fmt.Printf("   ")
 	}
 
 	x := node - 2
+	parentDir := filepath.Dir(path)
+	spaces := make([]string, node*2)
+
 	for x > 0 {
 		x--
-		fmt.Printf("│")
-		fmt.Printf("   ")
+		spaces = append([]string{"   "}, spaces...)
+		if dirlasts[parentDir] == true {
+			spaces = append([]string{" "}, spaces...)
+		} else {
+			spaces = append([]string{"│"}, spaces...)
+		}
+		parentDir = filepath.Dir(parentDir)
+	}
+
+	for _, v := range spaces {
+		fmt.Printf(v)
 	}
 
 	if last {
